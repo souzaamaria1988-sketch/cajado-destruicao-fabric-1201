@@ -1,0 +1,10 @@
+{
+  "item.cajadomod.cajado_destruicao": "Cajado da Destruição",
+  "item.cajadomod.cajado_destruicao.mode.fire": "🔥 Fogo",
+  "item.cajadomod.cajado_destruicao.mode.lightning": "⚡ Raio",
+  "item.cajadomod.cajado_destruicao.mode.void": "🌀 Vazio",
+  "item.cajadomod.cajado_destruicao.mode.tsunami": "🌊 Tsunami",
+  "item.cajadomod.cajado_destruicao.mode.meteor": "☄️ Meteoro",
+  "item.cajadomod.cajado_destruicao.mode.plague": "💀 Praga",
+  "item.cajadomod.cajado_destruicao.mode.vortex": "🌪️ Vórtice"
+}
