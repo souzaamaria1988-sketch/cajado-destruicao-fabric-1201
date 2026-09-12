@@ -75,7 +75,6 @@ public class DestructionStaffItem extends Item {
     public TypedActionResult<ItemStack> use(World world, PlayerEntity user, Hand hand) {
         ItemStack stack = user.getStackInHand(hand);
         if (!world.isClient) {
-            // SNEAK + clique = troca modo
             if (user.isSneaking()) {
                 NbtCompound nbt = stack.getOrCreateNbt();
                 int mode = nbt.getInt("Mode");
@@ -98,7 +97,6 @@ public class DestructionStaffItem extends Item {
                 return TypedActionResult.success(stack, true);
             }
 
-            // Clique normal = DISPARA na direção que está olhando
             BlockHitResult hit = raycast(world, user, 64.0);
             Vec3d impact = hit.getPos();
             dispatchMode(world, user, impact, null);
