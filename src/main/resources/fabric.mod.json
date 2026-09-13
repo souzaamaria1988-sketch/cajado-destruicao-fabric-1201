@@ -3,7 +3,7 @@
   "id": "cajadomod",
   "version": "1.0.0",
   "name": "Cajado da Destruição",
-  "description": "Cajado da Destruição — cajado com carga, 7 modos e ULTIMATEs",
+  "description": "Cajado da Destruição — cajado com HUD de carga, 7 modos e ULTIMATEs",
   "authors": [
     "Valentin"
   ],
@@ -13,10 +13,14 @@
   "entrypoints": {
     "main": [
       "com.example.cajadomod.DestructionStaffMod"
+    ],
+    "client": [
+      "com.example.cajadomod.DestructionStaffClient"
     ]
   },
   "depends": {
     "fabricloader": ">=0.15.0",
+    "fabric-api": ">=0.92.0",
     "minecraft": "~1.20.1",
     "java": ">=17"
   }

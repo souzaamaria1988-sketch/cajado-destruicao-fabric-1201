@@ -13,6 +13,6 @@ public class DestructionStaffMod implements ModInitializer {
     @Override
     public void onInitialize() {
         Registry.register(Registries.ITEM, new Identifier(MOD_ID, "cajado_destruicao"), DESTRUCTION_STAFF);
-        LOGGER.info("[Cajado da Destruição] Cajado com sistema de carga registrado!");
+        LOGGER.info("[Cajado da Destruição] Cajado com HUD de carga registrado!");
     }
 }

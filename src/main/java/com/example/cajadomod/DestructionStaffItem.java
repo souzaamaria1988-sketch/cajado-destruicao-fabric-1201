@@ -42,7 +42,7 @@ public class DestructionStaffItem extends Item {
     public static final int MODE_VORTEX = 6;
     public static final int MODE_COUNT = 7;
     public static final int FULL_CHARGE_TICKS = 60;
-    public static final int MAX_CHARGE_TICKS = 120;
+    public static final int OVERCHARGE_TICKS = 120;
 
     public DestructionStaffItem(Settings settings) { super(settings); }
 
@@ -51,7 +51,7 @@ public class DestructionStaffItem extends Item {
     }
 
     @Override
-    public int getMaxUseTime(ItemStack stack) { return MAX_CHARGE_TICKS; }
+    public int getMaxUseTime(ItemStack stack) { return 72000; }
 
     @Override
     public boolean hasGlint(ItemStack stack) {
@@ -93,8 +93,8 @@ public class DestructionStaffItem extends Item {
             default:             key = "item.cajadomod.cajado_destruicao.mode.fire";      color = Formatting.RED;
         }
         tooltip.add(Text.translatable(key).formatted(color));
-        tooltip.add(Text.literal("§8Hold right-click to CHARGE, release to fire").formatted(Formatting.GRAY));
-        tooltip.add(Text.literal("§8100%% = full power | 200%% = ULTIMATE").formatted(Formatting.DARK_GRAY));
+        tooltip.add(Text.literal("§8Hold right-click to CHARGE — bar stays full at 200%").formatted(Formatting.GRAY));
+        tooltip.add(Text.literal("§8Release to fire | 200% = ULTIMATE").formatted(Formatting.DARK_GRAY));
         tooltip.add(Text.literal("§8Sneak + right-click: switch mode").formatted(Formatting.GRAY));
     }
 
@@ -108,6 +108,14 @@ public class DestructionStaffItem extends Item {
         if (!world.isClient) {
             world.playSound(null, user.getX(), user.getY(), user.getZ(),
                 SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 0.6f, 1.4f);
+            if (world instanceof ServerWorld sw) {
+                for (int i = 0; i < 16; i++) {
+                    double a = Math.PI * 2 * i / 16.0;
+                    sw.spawnParticles(ParticleTypes.ENCHANT,
+                        user.getX() + Math.cos(a) * 0.8, user.getY() + 0.1, user.getZ() + Math.sin(a) * 0.8,
+                        1, 0, 0.2, 0, 0);
+                }
+            }
         }
         user.setCurrentHand(hand);
         return TypedActionResult.consume(stack);
@@ -132,13 +140,18 @@ public class DestructionStaffItem extends Item {
         world.playSound(null, user.getX(), user.getY(), user.getZ(),
             SoundEvents.BLOCK_AMETHYST_BLOCK_RESONATE, SoundCategory.PLAYERS, 0.7f, 0.6f + mode * 0.12f);
         if (world instanceof ServerWorld sw) {
-            sw.spawnParticles(modeParticle(mode), user.getX(), user.getY() + 1.2, user.getZ(), 40, 0.4, 0.6, 0.4, 0.2);
+            for (int i = 0; i < 24; i++) {
+                double a = Math.PI * 2 * i / 24.0;
+                sw.spawnParticles(modeParticle(mode),
+                    user.getX() + Math.cos(a) * 1.2, user.getY() + 1.0, user.getZ() + Math.sin(a) * 1.2,
+                    2, 0.1, 0.3, 0.1, 0.05);
+            }
         }
     }
 
     @Override
     public void usageTick(World world, LivingEntity user, ItemStack stack, int remainingUseTicks) {
-        int used = getMaxUseTime(stack) - remainingUseTicks;
+        int used = 72000 - remainingUseTicks;
         float charge = getCharge(used);
         if (world.isClient) {
             stack.getOrCreateNbt().putInt("ChargeVisual",
@@ -148,31 +161,77 @@ public class DestructionStaffItem extends Item {
         if (!(world instanceof ServerWorld sw)) return;
         int mode = stack.getOrCreateNbt().getInt("Mode");
 
+        // Espiral dupla-hélice convergente
         if (used % 2 == 0) {
-            double radius = Math.max(0.35, 1.6 - charge * 0.8);
-            double baseAngle = used * 0.45;
-            for (int i = 0; i < 4; i++) {
-                double a = baseAngle + i * Math.PI / 2.0;
+            double radius = Math.max(0.3, 1.8 - charge * 0.9);
+            double baseAngle = used * 0.5;
+            double height = 0.2 + ((used * 0.07) % 1.8);
+            for (int arm = 0; arm < 2; arm++) {
+                double a = baseAngle + arm * Math.PI;
                 double px = user.getX() + Math.cos(a) * radius;
                 double pz = user.getZ() + Math.sin(a) * radius;
-                double py = user.getY() + 0.3 + (used % 20) * 0.06;
-                sw.spawnParticles(modeParticle(mode), px, py, pz, 1, 0.02, 0.02, 0.02, 0.0);
+                sw.spawnParticles(modeParticle(mode), px, user.getY() + height, pz, 1, 0.02, 0.02, 0.02, 0.0);
+                sw.spawnParticles(ParticleTypes.END_ROD, px, user.getY() + height + 0.15, pz, 1, 0.01, 0.01, 0.01, 0.0);
             }
-            sw.spawnParticles(ParticleTypes.END_ROD,
-                user.getX(), user.getY() + 0.8 + charge * 0.8, user.getZ(), 1, 0.15, 0.15, 0.15, 0.0);
         }
-        if (used % 12 == 0) {
+
+        // Aura de runas no chão a partir de 100%
+        if (charge >= 1.0f && used % 6 == 0) {
+            for (int i = 0; i < 12; i++) {
+                double a = used * 0.3 + i * Math.PI / 6.0;
+                sw.spawnParticles(ParticleTypes.ENCHANT,
+                    user.getX() + Math.cos(a) * 0.9, user.getY() + 0.1, user.getZ() + Math.sin(a) * 0.9,
+                    1, 0, 0.15, 0, 0);
+            }
+        }
+
+        // Crepitar de overcharge a 200%
+        if (charge >= 2.0f && used % 4 == 0) {
+            sw.spawnParticles(ParticleTypes.ELECTRIC_SPARK,
+                user.getX(), user.getY() + 1.0 + (used % 10) * 0.08, user.getZ(), 6, 0.5, 0.8, 0.5, 0.15);
+            sw.spawnParticles(modeParticle(mode),
+                user.getX(), user.getY() + 1.7, user.getZ(), 4, 0.3, 0.3, 0.3, 0.05);
+        }
+
+        // Sons
+        if (used % 12 == 0 && charge < 2.0f) {
             world.playSound(null, user.getX(), user.getY(), user.getZ(),
                 SoundEvents.ENTITY_EXPERIENCE_ORB_PICKUP, SoundCategory.PLAYERS, 0.5f, 0.6f + charge * 0.9f);
+        } else if (charge >= 2.0f && used % 20 == 0) {
+            world.playSound(null, user.getX(), user.getY(), user.getZ(),
+                SoundEvents.BLOCK_BEACON_AMBIENT, SoundCategory.PLAYERS, 0.8f, 0.5f);
         }
-        if (user instanceof PlayerEntity p && used % 5 == 0) {
-            p.sendMessage(chargeBarText(charge), true);
-        }
+
+        // Marco 100%
         if (used == FULL_CHARGE_TICKS) {
+            for (int i = 0; i < 24; i++) {
+                double a = Math.PI * 2 * i / 24.0;
+                sw.spawnParticles(ParticleTypes.END_ROD,
+                    user.getX() + Math.cos(a) * 1.5, user.getY() + 0.1, user.getZ() + Math.sin(a) * 1.5,
+                    2, 0, 0, 0, 0);
+            }
             world.playSound(null, user.getX(), user.getY(), user.getZ(),
                 SoundEvents.BLOCK_BEACON_ACTIVATE, SoundCategory.PLAYERS, 1.0f, 1.6f);
             if (user instanceof PlayerEntity p) {
                 p.sendMessage(Text.literal("§a✦ CARGA COMPLETA — segure para OVERCHARGE ✦"), true);
+            }
+        }
+
+        // Marco 200% — overcharge pronto (a barra fica cheia e espera)
+        if (used == OVERCHARGE_TICKS) {
+            for (int i = 0; i < 36; i++) {
+                double a = Math.PI * 2 * i / 36.0;
+                sw.spawnParticles(modeParticle(mode),
+                    user.getX() + Math.cos(a) * 2.0, user.getY() + 0.5, user.getZ() + Math.sin(a) * 2.0,
+                    3, 0.1, 1.2, 0.1, 0.1);
+                sw.spawnParticles(ParticleTypes.SOUL_FIRE_FLAME,
+                    user.getX() + Math.cos(a) * 2.0, user.getY() + 0.5, user.getZ() + Math.sin(a) * 2.0,
+                    1, 0.05, 0.8, 0.05, 0.05);
+            }
+            world.playSound(null, user.getX(), user.getY(), user.getZ(),
+                SoundEvents.BLOCK_BEACON_POWER_SELECT, SoundCategory.PLAYERS, 1.2f, 0.7f);
+            if (user instanceof PlayerEntity p) {
+                p.sendMessage(Text.literal("§d§l✦ OVERCHARGE PRONTO — SOLTE PARA ULTIMATE! ✦"), true);
             }
         }
     }
@@ -185,7 +244,7 @@ public class DestructionStaffItem extends Item {
         }
         if (!(world instanceof ServerWorld sw)) return;
         if (!(user instanceof PlayerEntity player)) return;
-        int used = getMaxUseTime(stack) - remainingUseTicks;
+        int used = 72000 - remainingUseTicks;
         if (used < 3) return;
         float charge = getCharge(used);
         int mode = stack.getOrCreateNbt().getInt("Mode");
@@ -201,6 +260,7 @@ public class DestructionStaffItem extends Item {
         }
 
         dispatchMode(world, player, impact, charge);
+        shockwave(sw, player.getPos(), modeParticle(mode), charge);
         stack.damage(ult ? 2 : 1, player, e -> {});
 
         sw.playSound(null, player.getX(), player.getY(), player.getZ(),
@@ -217,28 +277,23 @@ public class DestructionStaffItem extends Item {
         return super.postHit(stack, target, attacker);
     }
 
+    private void shockwave(ServerWorld sw, Vec3d origin, ParticleEffect p, float charge) {
+        for (int ring = 1; ring <= 3; ring++) {
+            double r = ring * (0.8 + charge * 0.6);
+            int n = 16 + ring * 8;
+            for (int i = 0; i < n; i++) {
+                double a = Math.PI * 2 * i / n;
+                sw.spawnParticles(p, origin.x + Math.cos(a) * r, origin.y + 0.15, origin.z + Math.sin(a) * r,
+                    1, 0.02, 0, 0.02, 0);
+            }
+        }
+    }
+
     private BlockHitResult raycast(World world, PlayerEntity player, double maxDistance) {
         Vec3d eyePos = player.getEyePos();
         Vec3d endPos = eyePos.add(player.getRotationVec(1.0f).multiply(maxDistance));
         return world.raycast(new RaycastContext(eyePos, endPos,
             RaycastContext.ShapeType.OUTLINE, RaycastContext.FluidHandling.NONE, player));
-    }
-
-    private Text chargeBarText(float charge) {
-        int segments = 10;
-        StringBuilder sb = new StringBuilder();
-        if (charge < 1.0f) {
-            int filled = Math.round(charge * segments);
-            sb.append("§6Carga ");
-            for (int i = 0; i < segments; i++) sb.append(i < filled ? "§e█" : "§8█");
-            sb.append(" §f").append((int)(charge * 100)).append("%");
-        } else {
-            int over = Math.round((charge - 1.0f) * segments);
-            sb.append("§d§lOVERCHARGE ");
-            for (int i = 0; i < segments; i++) sb.append(i < over ? "§d█" : "§8█");
-            sb.append(" §f").append((int)(charge * 100)).append("%");
-        }
-        return Text.literal(sb.toString());
     }
 
     private ParticleEffect modeParticle(int mode) {
@@ -289,6 +344,9 @@ public class DestructionStaffItem extends Item {
         for (int i = 0; i < steps; i++) {
             Vec3d pos = start.add(dir.multiply(i * 0.33));
             sw.spawnParticles(p, pos.x, pos.y, pos.z, 1 + (int)charge, 0.05, 0.05, 0.05, 0.01);
+            if (charge >= 1.5f) {
+                sw.spawnParticles(ParticleTypes.END_ROD, pos.x, pos.y + 0.1, pos.z, 1, 0.03, 0.03, 0.03, 0.0);
+            }
         }
     }
 
